@@ -1,0 +1,196 @@
+
+const User = require("../models/userModel");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
+const saltRounds = 10;
+
+const generateToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
+  return jwt.sign(
+    {
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role || "user",
+      sessionVersion: user.sessionVersion || 0,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+    }
+  );
+};
+
+// LOGIN: Admin and User
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+
+    if (
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    const isPasswordMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isPasswordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // Only supported roles can log in.
+    const role = user.role || "user";
+
+    if (!["user", "admin"].includes(role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Account has an invalid role",
+      });
+    }
+
+    // Invalidate older sessions for this account.
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
+    await user.save();
+
+    const token = generateToken(user);
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+// REGISTER: Public registrations are always regular users.
+const register = async (req, res) => {
+  try {
+    const { name, email, password } = req.body || {};
+
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email and password are required",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "User already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(
+      password,
+      saltRounds
+    );
+
+    const user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: "user",
+      sessionVersion: 0,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Registration successful",
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "User already exists",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+// GET CURRENT USER PROFILE
+const getProfile = async (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: "Profile fetched successfully",
+    user: req.user,
+  });
+};
+
+module.exports = {
+  login,
+  register,
+  getProfile,
+};

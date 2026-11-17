@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Register Page</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .register-box {
+            width: 400px;
+            background: white;
+            padding: 35px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .register-box h2 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .register-box p {
+            text-align: center;
+            color: #777;
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            margin-bottom: 18px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #5568d9;
+        }
+
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        #message {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green !important;
+        }
+
+        .error {
+            color: red !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="register-box">
+
+        <h2>Create Account</h2>
+
+        <p>Register your account</p>
+
+        <form id="registerForm">
+
+            <!-- Name -->
+            <div class="input-group">
+                <label for="name">Name</label>
+
+                <input
+                    type="text"
+                    id="name"
+                    placeholder="Enter your name"
+                    required
+                >
+            </div>
+
+            <!-- Email -->
+            <div class="input-group">
+                <label for="email">Email</label>
+
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="Enter your email"
+                    required
+                >
+            </div>
+
+            <!-- Password -->
+            <div class="input-group">
+                <label for="password">Password</label>
+
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Enter your password"
+                    required
+                >
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" id="registerButton">
+                Register
+            </button>
+
+            <!-- Message -->
+            <div id="message"></div>
+
+        </form>
+
+    </div>
+
+
+    <script>
+
+        // Get form elements
+        const registerForm = document.getElementById("registerForm");
+        const registerButton = document.getElementById("registerButton");
+        const message = document.getElementById("message");
+
+
+        // Form submit event
+        registerForm.addEventListener("submit", async function(event) {
+
+            // Prevent page refresh
+            event.preventDefault();
+
+
+            // Get input values
+            const name = document.getElementById("name").value.trim();
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+
+
+            // Clear previous message
+            message.textContent = "";
+            message.className = "";
+
+
+            // Disable button
+            registerButton.disabled = true;
+            registerButton.textContent = "Registering...";
+
+
+            try {
+
+                // Send data to backend API
+                const response = await fetch(
+                    "http://localhost:5500/api/auth/register",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+
+                        body: JSON.stringify({
+                            name: name,
+                            email: email,
+                            password: password
+                        })
+                    }
+                );
+
+
+                // Convert response to JSON
+                const data = await response.json();
+
+
+                // Check response
+                 if (response.ok) {
+
+                    message.textContent =
+                        data.message || "Registration successful!";
+
+                    message.className = "success";
+
+                    // Clear form
+                    registerForm.reset();
+
+                } else {
+
+                    message.textContent =
+                        data.message || "Registration failed!";
+
+                    message.className = "error";
+                }
+
+
+            } catch (error) {
+
+                console.error("Error:", error);
+
+                message.textContent =
+                    "Unable to connect to the server.";
+
+                message.className = "error";
+
+            } finally {
+
+                // Enable button again
+                registerButton.disabled = false;
+                registerButton.textContent = "Register";
+            }
+
+        });
+
+    </script>
+
+</body>
+</html>
